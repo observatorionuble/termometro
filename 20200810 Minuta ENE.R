@@ -65,256 +65,18 @@ x = 1:length(nenes)
 nenes = nenes[x]
 n = length(nenes)
 
-drv <- dbDriver("PostgreSQL")
 
-# CREATE DATABASE "ENE"
-# WITH 
-# OWNER = postgres
-# ENCODING = 'UTF8'
-# LC_COLLATE = 'Spanish_Chile.1252'
-# LC_CTYPE = 'Spanish_Chile.1252'
-# TABLESPACE = pg_default
-# CONNECTION LIMIT = -1;
-
-# Posibles problemas para conectarse con el servidor local se soluciona con esto: 
-# https://stackoverflow.com/a/56576090/4950935
-
-
-con =  dbConnect(RPostgres::Postgres(),
-                 host = "localhost",
-                 port = 5433,
-                 dbname = "ENE",
-                 user = "postgres",
-                 password = "hecgarri"
-)
-
-
-## Funciones auxiliares ======== 
-{
-
-## Para ejecutar algunas funciones del lenguaje PostgreSQL es necesario crear algunas funciones auxiliares: 
-# con: conexión a la base de datos 
-# file.rename(list.files(pattern=".csv$"),gsub("-","_", list.files(pattern = ".csv$")))
-
-# tn: abreviatura de "Table Name"
-
-createEmptyTable = function(con,tn,df) {
-  sql <- paste0("CREATE TABLE \"",tn,"\" (",paste0(collapse=',','"',names(df),'" ',
-                                                   sapply(df[0,],postgresqlDataType)),");");
-  dbSendQuery(con,sql);
-  invisible();
-};
-
-insert_data = function(tn, source){
-  sql = paste0('COPY ',tn,' FROM \'',paste0(getwd(),'\\',source),'\' DELIMITER \',\' CSV HEADER encoding \'latin1\'')
-  dbSendQuery(con, sql);
-}
-
-format_quarters <- function(x) {
-  year <- year(x)
-  quart <- month(x)
-  paste(c("Dic-Feb","Ene-Mar","Feb-Abr",
-          "Mar-May","Abr-Jun","May-Jul",
-          "Jun-Ago","Jul-Sep","Ago-Oct",
-          "Sep-Nov","Oct-Dic", "Nov-Ene")[quart], 
-        year)
-}
-
-}
-### Creación de la base de datos ===== 
-
-tn = nenes
-
-
-# nenes__ = lapply(129:131, function(x) fread(nene[x]))
-# 
-# lapply(1:3, function(x) fwrite(nenes__[[x]], paste0(nenes[128+x], ".csv"), sep = ","))
-
-if (dbExistsTable(con, nenes[(n-11)]) == FALSE){
-  #lapply((n-12):n, function(x) dbRemoveTable(con,tn[x]));
-  
-  pblapply((n-12):n, function(x) createEmptyTable(con,tn[x],fread(nene[x], nrow = 100) %>%
-                                               mutate_if(~!is.null(.x), ~ replace_na(.x, replace = "NULL"))));
-  
-  pblapply((n-12):n, function(x) insert_data(tn[x],nene[x]))
-  
-}
-
-
-dbListTables(con)
-dbListFields(con, nenes[131])
-
-
-
-# Funciones auxiliares ====
-
-{
-
-  select_cols_ = function(colnames, tn, var = NULL, param = NULL){
-    if (is.null(var) | is.null(param)){
-      sql = paste0("SELECT ", paste0(colnames, collapse = ", "), " FROM ", tn,";")
-    } else {
-      sql = paste0("SELECT ", paste0(colnames, collapse = ", "), " FROM ", tn," WHERE ",var," = \'",param,"\'",  ";")
-    }
-    dbGetQuery(con, sql)
-  }
-  
-  # Para declarar una columna nueva en la tabla
-  # ALTER TABLE ",tn,"
-  # ADD region_e VARCHAR(10);
-  
-  create_aux = function(tn, region_e, r_p_c ){
-    sql = paste0("ALTER TABLE ",tn," ADD region_e VARCHAR(10);
-               UPDATE ", tn, " SET ", region_e," =
-               CASE
-               WHEN length(",r_p_c,") =  4 THEN substring(",r_p_c," from 1 for 1)
-               ELSE substring(",r_p_c," from 1 for 2)
-               END;")
-    dbSendStatement(con, sql)
-  }
-  
-    
-}
-
-
-
-  # if (!("region_e" %in% dbListFields(con, nenes[n-1])) == TRUE) {
-  #   pblapply(1:n, function(x) create_aux(tn[x], "region_e", "b18_codigo"))  
-  # }
-  
-  
-  # ene_nuble_ es un conjunto de datos que no considera el efecto de la conmutación en el empleo, pues usa
-  # la variable region que identifica el lugar de residencia del trabajador. Por tanto la mirada es más bien teritorial.
-  
-  
-  
-colnames = c("ano_trimestre","mes_central", "ano_encuesta",
-             "mes_encuesta", "id_directorio", "estrato", 
-             "fact_cal", "cae_general", "cae_especifico", "b18_codigo", "region",
-             "r_p_c", "sexo", "nacionalidad", "b11",
-             "b15_1","b15_2","categoria_ocupacion", "nivel",
-             "habituales", "efectivas", "edad", "curso",
-             "termino_nivel","e19", "region_e", 
-             "b17_mes", "b17_ano", # variables para calcular duración en el puesto de trabajo
-             "e5_dia", "e5_mes", "e5_ano", # Variables para calcular duración del desempleo
-             "e9", # Razones de inactividad 
-             "tramo_edad") # Razones de despido
-  
-  #fix_wd("Google Drive/OLR Ñuble - Observatorio laboral de Ñuble/Análisis Cuantitativo/")
-  
-nuevas_variables = function(ene){
-  ene %>% 
-    mutate_all(as.numeric) %>% 
-    mutate(aux = stri_length(r_p_c), 
-           cae_general2 = recode(cae_general,`0`=0,`1` = 1,`2` = 1,
-                                 `3` = 1, `4` = 2,`5` = 2,`6` = 3,
-                                 `7` = 3,`8` = 3,`9` = 3), 
-           cae_general2 = factor(cae_general2,levels = c(0,1,2,3), 
-                                 labels = c("Menor de 15","Ocupado", "Desocupado", "Inactivo")),
-           activo = ifelse(cae_general2 == "Ocupado" | cae_general2=="Desocupado",1,0), 
-           edad_activ = ifelse(cae_general2 != "Menor de 15",1,0), 
-           desocupado = ifelse(cae_general2=="Desocupado",1,0), 
-           ocupado = ifelse(cae_general2 == "Ocupado",1,0), 
-           region = ifelse(prov==84,16,region) , 
-           tramo_etario = ifelse(edad>=15 & edad<= 29,1,
-                                 ifelse(edad>= 30 & edad<= 44,2,
-                                        ifelse(edad>= 45 & edad<= 59,3,
-                                               ifelse(edad>= 60 & edad<=64,4,
-                                                      ifelse(edad>=65, 5, NA))))), 
-    )
-}
-  
-  rename_col = function(tn, old_n, new_n){
-    sql = paste0("ALTER TABLE ",tn," 
-  RENAME COLUMN ",old_n," TO ",new_n,";")
-    dbSendStatement(con, sql)  
-  }
-  
-  trimestres = seq.Date(as.Date("2010-02-01"), as.Date("2020-12-01"), "month")
-  
-
-
-  
-  
-  
-  
-# Códigos para gráficos =================
-
-
-  # bar_chart = function(df, categoria, pct, variable, 
-  #                      title = NULL){ 
-  #   nb.cols <-     length(unique(eval(substitute(variable), df)))
-  #   mycolors <- colorRampPalette(brewer.pal(min(9,nb.cols), "Blues"))(nb.cols)
-  #   categoria = enquo(categoria)
-  #   pct = enquo(pct)
-  #   variable = enquo(variable)
-  #   p = df %>% 
-  #     ggplot(aes(x = !! categoria, y = !! pct, fill = !! variable))+
-  #     geom_bar(stat = "identity", position = "fill")+
-  #     coord_flip()+
-  #     geom_text(aes(label=paste0(!! pct, "%")), position=position_fill(vjust = .5), size = 10) +
-  #     scale_x_discrete(labels = function(x) str_wrap(x, width = 15) %>% str_trunc(width = 24), 
-  #                      limits = function(x) rev(x))+
-  #     scale_fill_manual(values = mycolors,
-  #                       labels = function(x) str_wrap(x, width = 40) %>% str_trunc(width = 60))+
-  #     labs(y = "% de respuestas", x = "",
-  #          caption = "Fuente: Observatorio Laboral de Ñuble",
-  #          fill = "", 
-  #          subtitle = paste0("n: ", sum(eval(substitute(empresas), df), na.rm = TRUE)," respuestas"))+
-  #     guides(fill = guide_legend(nrow = round(nb.cols/2)))+
-  #     ggtitle(str_wrap(title, width  = 55))+
-  #     theme(axis.text.x = element_text(size = 25, hjust = .5), 
-  #           text = element_text(size = 25),
-  #           strip.background=element_blank(),
-  #           panel.border = element_blank(),
-  #           panel.grid = element_blank(),
-  #           panel.background = element_blank(), 
-  #           axis.ticks=element_blank(),
-  #           legend.position = "bottom",
-  #           legend.text=element_text(size=25), 
-  #           axis.text = element_text(size = 25), 
-  #           axis.title = element_text(size = 25), 
-  #           legend.key.size = unit(.75,"cm"), 
-  #           legend.title = element_text(size = 15), 
-  #           title = element_text(size = 30))+
-  #     theme(axis.line = element_blank(),
-  #           # axis.text = element_blank(),
-  #           axis.ticks = element_blank(),
-  #           axis.text.x = element_blank(), 
-  #           legend.position = "top")
-  #   p
-  #
-  
-  
-  
-  theme_  = theme(axis.text.x = element_text(size = 15, angle = 90, hjust = 1), 
-                  text = element_text(size = 18),
-                  strip.background=element_blank(),
-                  # panel.border = element_blank(),
-                  # panel.grid = element_blank(),
-                  axis.ticks=element_blank(),
-                  legend.position = "bottom",
-                  legend.text=element_text(size=15), 
-                  axis.text = element_text(size = 20), 
-                  axis.title = element_text(size = 25), 
-                  legend.key.size = unit(.75,"cm"), 
-                  legend.title = element_text(size = 20))
+trimestres = seq.Date(as.Date("2010-02-01"), as.Date("2021-05-01"), "month")
   
 
   
 # Análisis  de la Encuesta Nacional de Empleo (ENE) =============================================================================
 #********************************************************************************************************************************
 
-  
-  
-
 # pblapply(119:119, function(x) rename_col(tn[x], "estrato_unico", "estrato"))
-# pblapply(119:131, function(x) rename_col(tn[x], "conglomerado", "id_directorio"))
+# nenes__ = pblapply(119:136, function(x) data.table::fread(paste0(path_ene,nene[x])) %>% rename(`id_directorio` = `conglomerado`))
+# pblapply(1:18, function(x) data.table::fwrite(nenes__[[x]], file = paste0(path_ene, nene[118+x])))
 # pblapply(124, function(x) rename_col(tn[x], "e9_orig", "e9"))
-  
-i_ = 131
-
-dbListFields(con, nenes[i_])[grep("conglomerado", dbListFields(con, nenes[i_]))]
   
 
 new_vars = function(ene){
@@ -346,26 +108,24 @@ alcance_nom = c("Tarapacá", "Antofagasta", "Atacama", "Coquimbo",
 
 
 # # 2019 : 108
-# mbm = microbenchmark(
-  ene_ = pblapply(1:length(alcance_nom), function(y) pblapply(c(n-12,n), function(x) select_cols_(c("ano_trimestre",  
-                                                                                                "mes_central", "cae_general", "cae_especifico", 
-                                                                                                "fact_cal", "estrato", "id_directorio", "region", 
-                                                                                                "edad", "sexo","tramo_edad", "categoria_ocupacion", "b1", 
-                                                                                                "nivel", "termino_nivel"),
-                                                                                              nenes[x]) %>% 
-                                                                as.data.table %>% 
-                                                                filter(!is.na(id_directorio)) %>% 
-                                                                filter(!is.na(fact_cal)) %>% 
-                                                                filter(region %in% alcance[[y]]) %>% 
-                                                                new_vars %>%    
-                                                                #                   mutate_all(as.numeric) %>% 
-                                                                mutate(alcance = alcance_nom[y], 
-                                                                       trimestre = trimestres[x])))
-  # ,
-  # times = 100
-#)
 
-ene_ = unlist(ene_, recursive = FALSE)
+ene_ = pblapply(1:length(alcance_nom), function(y) pblapply((n-24):n, function(x) data.table::fread(paste0(path_ene, nene[x]),
+                                                                                                     select =  c("ano_trimestre",  
+                                                                                              "mes_central", "cae_general",  
+                                                                                              "fact_cal", "estrato", "id_directorio", "region", 
+                                                                                              "edad", "sexo","tramo_edad", "categoria_ocupacion", "b1", 
+                                                                                              "nivel", "termino_nivel"),
+                                                                                            ) %>% 
+                                                              filter(!is.na(id_directorio)) %>% 
+                                                              filter(!is.na(fact_cal)) %>% 
+                                                              filter(region %in% alcance[[y]]) %>% 
+                                                              new_vars %>%    
+                                                              #                   mutate_all(as.numeric) %>% 
+                                                              mutate(alcance = alcance_nom[y], 
+                                                                     trimestre = trimestres[x])))
+
+
+#ene_ = unlist(ene_, recursive = FALSE)
 
 
 beepr::beep(sound = 8)
