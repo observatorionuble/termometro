@@ -39,16 +39,42 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.keys import Keys
 
 # grab Keywords
-search_term = input('Keywords: ')
+# search_term = input('Keywords: ')
 
 # url generator
-driver.get('https://www.aliexpress.com')
+#driver.get('https://www.aliexpress.com')
+driver.get('https://www.ine.cl/estadisticas/sociales/mercado-laboral/ocupacion-y-desocupacion')
 driver.implicitly_wait(10)
 
+driver.execute_script("document.getElementByClassName('navPrincipalDescargas navPrincipalDescargasActivo').click()")
 
-p = driver.find_element_by_name('SearchText')
-p.send_keys(search_term)
-p.send_keys(Keys.ENTER)
+# <a class="" href="https://www.ine.cl/docs/default-source/ocupacion-y-desocupacion/bbdd/2021/formato-csv/ene-2021-02-efm.csv?sfvrsn=6d3786e2_10&amp;download=true"> <span class="iconoDescarga iconoDescarga-csv"></span> <span class="tituloDescargaArchivos">ENE 2021 02 EFM<span class="pesoArchivoDescarga">CSV, 47.57 MB</span></span><span class="circuloDescarga"><i class="fas fa-download"></i></span></a>
+
+
+
+# "https://www.ine.cl/docs/default-source/ocupacion-y-desocupacion/bbdd/2021/formato-csv/ene-2021-02-efm.csv?sfvrsn=6d3786e2_10&amp;download=true"
+# 
+# "https://www.ine.cl/docs/default-source/ocupacion-y-desocupacion/bbdd/2021/formato-csv/ene-2021-03-fma.csv?sfvrsn=f99721e_12&amp;download=true"
+# 
+
+
+# # p = driver.find_element_by_xpath('//*[@id="Content_C007_Col00"]/div/div/div[7]/em')
+p = driver.find_element_by_class_name('navPrincipalDescargas navPrincipalDescargasActivo')
+driver.execute_script("arguments[0].click();", p)
+# print(p)
+# #p.send_keys(search_term)
+# p.send_keys(Keys.ENTER)
+
+search_query = "widArchNavArchivoDescarga"
+
+p.send_keys(search_query + Keys.RETURN)
+    
+
+select_element = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.ID, "BASES DE DATOS")))
+
+#Content_C007_Col00 > div > div > div.navPrincipalDescargas.navPrincipalDescargasActivo
+
+//*[@id="Content_C007_Col00"]/div/div/div[7]/em
 
 
 
