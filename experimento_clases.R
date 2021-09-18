@@ -34,44 +34,31 @@ random_costs = RV(outcomes = costos, probs = 1/6)
 
 random_values = RV(outcomes = valores, probs = 1/6)
 
-sim_costs = rsim(random_costs, 13)
-sim_values = rsim(random_values, 13)
+sim_costs = rsim(random_costs, 7)
+sim_values = rsim(random_values, 6)
 
-correos_of = c("katalina.fuenzalida@alu.ucm.cl",
-"ivana.ruminot@alu.ucm.cl",
-"matias.pinto@alu.ucm.cl",
-"mauricio.mardones@alu.ucm.cl",
-"matiasjaraespinoza@gmail.com",
-"catalina.leal@alu.ucm.cl", 
-"paula.maturana@alu.ucm.cl",
-"Alexiarojasc@gmail.com",
-"carla.donoso@alu.ucm.cl",
-"pamelaestervs@gmail.com",
-"maureiracristian31@gmail.com",
-"arlette.val31@gmail.com",
-"bianca.valenzuela@alu.ucm.cl")
+correos_of = c("ornella.silva@alu.ucm.cl",
+               "mariapazad.10@gmail.com",
+               "daniela.rios.o1@alu.ucm.cl",
+               "josefa1308@hotmail.com",
+               "javiera.salgado.01@alu.ucm.cl",
+               "matias.vergara.01@alu.ucm.cl",
+               "angy.abrigo345@gmail.com")
 
-correos_dem = c("antonia.zambrano@alu.ucm.cl",
-                "marjorie.letelier@alu.ucm.cl",
-                "Tamara.rios@alu.ucm.cl",
-                "sofia.hormazabal.01@alu.ucm.cl",
-                "darrin.alegria@alu.ucm.cl",
-                "francisca.garrido.04@alu.ucm.cl",
-                "sebastian.ortiz.01@alu.ucm.cl",
-                "angela.cursach@alu.ucm.cl", 
-                "sebastian.valderrama@alu.ucm.cl",
-                "javiera.tobar.01@alu.ucm.cl",
-                "carla.donoso@alu.ucm.cl",
-                "Josefa.skaida@alu.ucm.cl",
-                "valentina.rodriguez.01@alu.ucm.cl")
+correos_dem = c("valentina.nunez.01@alu.ucm.cl",
+                "maria.vergara.03@alu.ucm.cl",
+                "maria.perez.07@alu.ucm.cl",
+                "constanza.herrera.02@alu.ucm.cl",
+                "javiera.badilla@alu.ucm.cl",
+                "javiera.aravena.03@alu.ucm.cl")
 
-correos_dem = c()
 
-costs = sim_costs[1:13]
 
-values = sim_values[1:13]
+costs = sim_costs[1:7]
 
-lapply(1:13, function(x)
+values = sim_values[1:6]
+
+lapply(2:7, function(x)
   gm_mime() %>%
     gm_to(correos_of[x]) %>%
     gm_from("hgarrido@ubiobio.cl") %>%
@@ -82,7 +69,7 @@ lapply(1:13, function(x)
 ) 
 
 
-lapply(1:2, function(x)
+lapply(1:6, function(x)
   gm_mime() %>%
     gm_to(correos_dem[x]) %>%
     gm_from("hgarrido@ubiobio.cl") %>%
